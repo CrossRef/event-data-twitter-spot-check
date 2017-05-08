@@ -35,7 +35,7 @@
   ([] (fetch-query-api ""))
   ([cursor]
     (log/info "Fetch Query API cursor" cursor)
-    (let [url (str (:query-api-base env) "/events?filter=source:twitter&cursor=" cursor)
+    (let [url (str (:query-api-base env) "/events?experimental=true&filter=source:twitter&cursor=" cursor)
           response (try-try-again {:sleep 30000 :tries 10} #(client/get url {:as :stream :timeout 900000}))
           body (json/read (io/reader (:body response)) :key-fn keyword)
           events (-> body :message :events)
@@ -47,8 +47,7 @@
 (defn events-in-batch-should-be-deleted
   [event-batch]
   (let [ids (set (map #(-> % :subj :alternative-id str) event-batch))
-        response (restful/statuses-lookup  :oauth-creds my-creds :params {:id (clojure.string/join "," ids) :map false})
-        
+        response (try-try-again #(restful/statuses-lookup  :oauth-creds my-creds :params {:id (clojure.string/join "," ids) :map false}))        
         ; Whole response comes back as keywords, including Tweet ID keys. Convert these to strings.
         ; extant-tweet-ids (->> response :body :id keys (map name) set)
         extant-tweet-ids (->> response :body (map :id) (map str))
